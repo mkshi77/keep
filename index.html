@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiRmlsbCBVcCIsInNob3J0X25hbWUiOiJGaWxsIFVwIiwic3RhcnRfdXJsIjoiLi8iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjMDAwMDAwIiwidGhlbWVfY29sb3IiOiIjMDAwMDAwIiwiaWNvbnMiOlt7InNyYyI6Imh0dHBzOi8vcGxhY2Vob2xkLmNvLzE5MiIs"sizes":"192x192","type":"image/png"}]}">
+    
+    <title>Fill Up 2026</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        /* --- 🎨 核心视觉系统 (保持不变) --- */
+        :root {
+            --accent: #ccff00; /* 荧光绿 */
+            --accent-dim: #4d6600;
+            --rest: #00ccff;   /* 休息蓝 */
+            --bg: #000000;
+            --card: #121212;
+            --text-main: #ffffff;
+            --text-sub: #888888;
+            --cell-size: 28px; 
+            --cell-gap: 4px;
+        }
+
+        @media (max-width: 374px) { :root { --cell-size: 22px; --cell-gap: 3px; } }
+        @media (min-width: 410px) { :root { --cell-size: 32px; --cell-gap: 5px; } }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, Helvetica, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            padding-bottom: calc(100px + env(safe-area-inset-bottom));
+            overscroll-behavior-y: none;
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Level Badge */
+        .level-badge {
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            color: black; font-weight: 900; font-size: 10px;
+            padding: 2px 6px; border-radius: 4px; margin-left: 8px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        /* Chart */
+        .chart-container {
+            height: 100px; width: 100%; position: relative;
+            background: linear-gradient(to bottom, #111, #000);
+            border-bottom: 1px solid #222; overflow: hidden;
+            display: flex; align-items: flex-end; padding: 0 10px;
+        }
+        svg polyline {
+            fill: none; stroke: var(--accent); stroke-width: 2;
+            stroke-linecap: round; stroke-linejoin: round;
+            filter: drop-shadow(0 0 4px var(--accent));
+        }
+        .chart-point { fill: #000; stroke: var(--accent); stroke-width: 2; r: 3; }
+
+        /* Calendar */
+        .calendar-wrapper { background: #0a0a0a; padding: 10px 0 15px 0; border-bottom: 1px solid #222; }
+        .calendar-scroll { overflow-x: auto; display: flex; padding-left: 10px; padding-right: 20px; }
+        .week-labels {
+            position: sticky; left: 0; z-index: 20; background: #0a0a0a;
+            display: flex; flex-direction: column; justify-content: flex-end;
+            padding-right: 8px; margin-top: 20px; gap: var(--cell-gap);
+        }
+        .week-tag { height: var(--cell-size); line-height: var(--cell-size); font-size: 9px; color: #444; text-align: right; }
+        .heatmap-container { display: flex; flex-direction: column; }
+        .month-row { position: relative; height: 20px; margin-bottom: 4px; }
+        .month-label { position: absolute; font-size: 10px; color: #666; font-weight: bold; }
+        .grid-cells { display: grid; grid-template-rows: repeat(7, var(--cell-size)); grid-auto-flow: column; gap: var(--cell-gap); }
+        .day-cell { width: var(--cell-size); height: var(--cell-size); background: #1a1a1a; border-radius: 4px; transition: transform 0.1s; }
+        .day-cell.active { background: var(--accent); box-shadow: 0 0 5px rgba(204,255,0,0.3); }
+        .day-cell.rest { background: var(--rest); box-shadow: 0 0 5px rgba(0,204,255,0.3); }
+        .day-cell.today { border: 2px solid #fff; z-index: 10; }
+
+        /* Diet & Workout UI */
+        .workout-card { background: var(--card); border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
+        /* 修改：适配 MP4 Video */
+        .gif-area {
+            width: 100%; height: 180px; background: #000;
+            display: flex; align-items: center; justify-content: center;
+            position: relative; color: #333; flex-direction: column;
+        }
+        
+        .set-row { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; animation: fadeIn 0.3s; }
+        .input-wrapper {
+            background: #1f1f1f; border: 1px solid #333; border-radius: 6px;
+            display: flex; align-items: center; height: 36px; padding: 0 8px;
+            transition: border-color 0.2s;
+        }
+        .input-wrapper:focus-within { border-color: var(--accent); }
+        .input-dark {
+            background: transparent; color: white; text-align: center; 
+            width: 32px; outline: none; font-family: monospace; font-size: 14px; font-weight: bold;
+        }
+        .unit-text { font-size: 10px; color: #666; margin-left: 2px; }
+        
+        .check-btn {
+            width: 36px; height: 36px; border-radius: 6px; border: 1px solid #444;
+            color: #444; display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+        }
+        .check-btn.checked { background: var(--accent); border-color: var(--accent); color: black; }
+
+        .tab-btn { padding: 4px 12px; font-size: 12px; border-radius: 6px; transition: all 0.2s; }
+        .tab-active { background-color: var(--accent) !important; color: black !important; font-weight: 800; }
+        .tab-inactive { color: #666; background: transparent; }
+
+        /* Bottom Floating Bar */
+        .bottom-floater {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: linear-gradient(to top, black 20%, transparent);
+            padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom));
+            z-index: 50; display: flex; justify-content: center;
+        }
+        .action-btn {
+            width: 100%; max-width: 400px; height: 56px;
+            background: var(--accent); border-radius: 28px;
+            color: black; font-weight: 900; font-size: 18px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 25px rgba(204,255,0,0.4);
+            transition: transform 0.1s;
+        }
+        .action-btn:active { transform: scale(0.96); }
+        /* 修改：完成态按钮样式 */
+        .action-btn.filled {
+            background: #111; color: var(--accent); border: 2px solid var(--accent);
+            box-shadow: 0 0 15px rgba(204,255,0,0.2);
+        }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+            z-index: 100; display: none; align-items: center; justify-content: center;
+            backdrop-filter: blur(8px);
+        }
+        .modal-box {
+            background: #1a1a1a; padding: 28px; border-radius: 20px;
+            width: 85%; max-width: 320px; text-align: center;
+            border: 1px solid #333; animation: popIn 0.3s;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .confirm-btn {
+            width: 100%; background-color: var(--accent); color: black; font-weight: 900;
+            box-shadow: 0 4px 15px rgba(204,255,0,0.3);
+        }
+        .sheet-option {
+            width: 100%; padding: 16px; border-bottom: 1px solid #333;
+            color: white; font-size: 16px; font-weight: 500;
+        }
+        .sheet-option:last-child { border-bottom: none; color: #666; }
+        .sheet-option.danger { color: #ff4444; }
+
+        @keyframes fadeIn { from{opacity:0; transform:translateY(5px)} to{opacity:1; transform:translateY(0)} }
+        @keyframes popIn { from{opacity:0; transform:scale(0.9)} to{opacity:1; transform:scale(1)} }
+        
+        input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.6; }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="px-5 pt-6 pb-2 bg-[#0a0a0a] flex justify-between items-end">
+        <div>
+            <div class="flex items-center mb-1">
+                <span class="text-xs text-gray-500 uppercase tracking-widest">Lv.<span id="userLevelNum">1</span></span>
+                <span class="level-badge" id="userLevelTitle">竹竿 STICK</span>
+            </div>
+            <div class="text-2xl font-black italic text-white flex items-center">
+                <span id="currentDateDisplay">...</span>
+            </div>
+        </div>
+        <div class="text-right">
+            <div class="text-[10px] text-gray-600">Total Filled</div>
+            <div class="text-accent font-mono font-bold text-lg"><span id="streakCount">0</span> Days</div>
+        </div>
+    </header>
+
+    <!-- Chart -->
+    <div class="bg-[#0a0a0a] px-5 pb-2">
+        <div class="flex justify-between items-center mb-1">
+            <span class="text-[10px] text-gray-500">Weight Trend</span>
+            <span class="text-xs text-white font-mono font-bold" id="currentWeightDisplay">-- kg</span>
+        </div>
+        <div class="chart-container" id="weightChart">
+            <p class="text-xs text-gray-700 w-full text-center self-center">记录3次体重后解锁曲线</p>
+        </div>
+    </div>
+
+    <!-- Calendar -->
+    <div class="calendar-wrapper">
+        <div class="calendar-scroll no-scrollbar" id="calScroll">
+            <div class="week-labels">
+                <div class="week-tag">Mon</div><div class="week-tag">Wed</div><div class="week-tag">Fri</div>
+            </div>
+            <div class="heatmap-container">
+                <div class="month-row" id="monthLabels"></div>
+                <div class="grid-cells" id="gridCells"></div>
+            </div>
+        </div>
+    </div>
+
+    <main class="px-4 mt-6">
+        <!-- Diet -->
+        <section class="mb-10">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-white font-bold text-lg"><i class="fas fa-bolt text-accent mr-2"></i>加餐充能</h2>
+                <button onclick="addMeal()" class="text-xs text-gray-500 border border-gray-700 px-3 py-1 rounded-full"><i class="fas fa-plus"></i></button>
+            </div>
+            <div id="dietList"></div>
+        </section>
+
+        <!-- Workout -->
+        <section class="mb-4">
+            <div class="flex justify-between items-center mb-5">
+                <h2 class="text-white font-bold text-lg"><i class="fas fa-dumbbell text-accent mr-2"></i>今日训练</h2>
+                <div class="bg-[#222] p-1 rounded-lg flex">
+                    <button class="tab-btn" id="tabUpper" onclick="switchPlan('upper')">上半身</button>
+                    <button class="tab-btn" id="tabLower" onclick="switchPlan('lower')">下半身</button>
+                </div>
+            </div>
+            <div id="workoutList"></div>
+        </section>
+
+        <!-- 数据重置入口 -->
+        <div class="mt-16 mb-24 text-center">
+            <button onclick="resetApp()" class="text-[10px] text-gray-800 hover:text-red-900 transition-colors">
+                <i class="fas fa-trash-alt mr-1"></i> 重置所有数据
+            </button>
+        </div>
+    </main>
+
+    <!-- Bottom Button -->
+    <div class="bottom-floater">
+        <button id="mainActionBtn" onclick="handleMainAction()" class="action-btn">
+            <i class="fas fa-bolt mr-2"></i> 填满今日格子
+        </button>
+    </div>
+
+    <!-- Weight Modal -->
+    <div class="modal-overlay" id="weightModal">
+        <div class="modal-box">
+            <h3 class="text-white font-bold text-xl mb-2" id="modalTitle">记录今日体重</h3>
+            <p class="text-gray-500 text-xs mb-6">看到曲线变化是坚持的最大动力</p>
+            <div class="flex items-center justify-center gap-3 mb-2">
+                <div class="bg-[#333] rounded-xl px-4 py-2 border border-[#444] flex items-center">
+                    <input type="number" id="weightInput" step="0.1" class="bg-transparent text-white text-3xl font-bold w-24 text-center outline-none" placeholder="00.0">
+                </div>
+                <span class="text-gray-400 font-bold text-lg">kg</span>
+            </div>
+            <button onclick="confirmFinish()" class="confirm-btn py-3.5 rounded-xl mt-6 w-full text-lg">确认完成</button>
+            <button onclick="closeModal('weightModal')" class="mt-4 text-xs text-gray-600 underline" id="skipBtn">跳过记录</button>
+        </div>
+    </div>
+
+    <!-- Action Sheet -->
+    <div class="modal-overlay" id="actionSheet" onclick="if(event.target===this) closeModal('actionSheet')">
+        <div class="modal-box p-0 overflow-hidden">
+            <button onclick="closeModal('actionSheet')" class="sheet-option">返回修改记录</button>
+            <button onclick="undoCheckIn()" class="sheet-option danger">撤销今日打卡</button>
+            <button onclick="closeModal('actionSheet')" class="sheet-option">取消</button>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div class="modal-overlay" id="historyModal" onclick="if(event.target===this) closeModal('historyModal')">
+        <div class="modal-box text-left relative">
+            <button onclick="closeModal('historyModal')" class="absolute top-3 right-3 text-gray-500"><i class="fas fa-times"></i></button>
+            <h3 class="text-white font-bold text-lg mb-4" id="histDate">...</h3>
+            <div id="histContent" class="space-y-3 max-h-[60vh] overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <!-- Celebrate Layer -->
+    <div id="celebrateLayer" class="fixed inset-0 bg-black z-[200] hidden flex-col items-center justify-center">
+        <div id="gridAnim" class="flex flex-wrap w-64 justify-center gap-1 mb-8"></div>
+        <h1 class="text-4xl font-black italic text-white animate-bounce">YOU DID IT!</h1>
+        <p class="text-accent mt-2 font-mono" id="levelUpText"></p>
+    </div>
+
+    <script>
+        // ==========================================
+        // ⚙️ CONFIG & DATA
+        // ==========================================
+        const CONFIG = {
+            levels: [
+                { days: 0, title: "竹竿 STICK" },
+                { days: 7, title: "觉醒者 AWAKENED" },
+                { days: 30, title: "强化骨骼 REINFORCED" },
+                { days: 90, title: "肌肉装甲 ARMORED" },
+                { days: 180, title: "泰坦 TITAN" }
+            ],
+            plans: {
+                upper: [ // 修改：配置使用 .mp4
+                    { id: 'u1', name: '平板卧推', gif: 'assets/bench.mp4' },
+                    { id: 'u2', name: '哑铃侧平举', gif: 'assets/raise.mp4' },
+                    { id: 'u3', name: '坐姿划船', gif: 'assets/row.mp4' }
+                ],
+                lower: [
+                    { id: 'l1', name: '杠铃深蹲', gif: 'assets/squat.mp4' },
+                    { id: 'l2', name: '罗马尼亚硬拉', gif: 'assets/rdl.mp4' }
+                ]
+            },
+            defaultSets: 4
+        };
+
+        const FOOD_LIB = [
+            "全麦面包 + 花生酱", "希腊酸奶 + 坚果", "香蕉 + 燕麦棒", 
+            "两个水煮蛋 + 牛奶", "增肌粉 (Gainer) 一勺", "鸡胸肉三明治",
+            "黑巧克力 + 杏仁", "红薯 + 纯牛奶", "牛肉干 + 运动饮料",
+            "鳄梨 (牛油果) 土司", "蓝莓 + 茅屋芝士", "金枪鱼罐头 + 饼干"
+        ];
+
+        const DB_KEY = 'FILLUP_V11_DATA';
+        const YEAR = 2026;
+        let appData = {
+            lastLogin: '',
+            history: {}, 
+            weightRecords: [], 
+            lastWeights: {}, 
+            currentDiet: [
+                { id: 1, time: '10:00', text: '全麦面包+牛奶', checked: false, required: true },
+                { id: 2, time: '15:30', text: '香蕉+坚果', checked: false, required: true },
+                { id: 3, time: '21:00', text: '睡前蛋白粉', checked: false, required: true }
+            ],
+            currentPlan: 'upper'
+        };
+
+        // 全局状态：弹窗是用于初始化还是打卡
+        let currentModalMode = 'checkin'; 
+
+        // ==========================================
+        // 🧠 LOGIC
+        // ==========================================
+        function init() {
+            const raw = localStorage.getItem(DB_KEY);
+            const todayStr = new Date().toDateString();
+            let isFirstLaunch = false;
+
+            if (raw) {
+                const saved = JSON.parse(raw);
+                if (saved.lastLogin !== todayStr) {
+                    appData = {
+                        ...saved,
+                        lastLogin: todayStr,
+                        currentDiet: saved.currentDiet.map(d => ({...d, checked: false}))
+                    };
+                    saveData();
+                } else {
+                    appData = saved;
+                }
+            } else {
+                appData.lastLogin = todayStr;
+                isFirstLaunch = true;
+            }
+
+            renderUI();
+            
+            // 新用户引导
+            if(isFirstLaunch || appData.weightRecords.length === 0) {
+                setTimeout(() => {
+                    currentModalMode = 'onboarding'; // 标记为初始化模式
+                    document.getElementById('modalTitle').innerText = "初始化基准体重";
+                    document.getElementById('skipBtn').style.display = 'none';
+                    document.getElementById('weightModal').style.display = 'flex';
+                }, 500);
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem(DB_KEY, JSON.stringify(appData));
+            updateButtonState();
+        }
+
+        function renderUI() {
+            renderHeader();
+            renderCalendar();
+            renderChart();
+            renderDiet();
+            renderWorkout();
+            updateButtonState();
+        }
+
+        // --- Render Functions ---
+        function renderHeader() {
+            const today = new Date();
+            document.getElementById('currentDateDisplay').innerText = 
+                `${today.getMonth()+1}月${today.getDate()}日 ` + 
+                ['周日','周一','周二','周三','周四','周五','周六'][today.getDay()];
+            
+            const filledCount = Object.keys(appData.history).length;
+            document.getElementById('streakCount').innerText = filledCount;
+
+            let currentLv = CONFIG.levels[0];
+            for(let lv of CONFIG.levels) { if(filledCount >= lv.days) currentLv = lv; }
+            document.getElementById('userLevelNum').innerText = CONFIG.levels.indexOf(currentLv) + 1;
+            document.getElementById('userLevelTitle').innerText = currentLv.title;
+        }
+
+        function renderChart() {
+            const container = document.getElementById('weightChart');
+            const recs = appData.weightRecords;
+            if (recs.length < 2) return; 
+
+            const weights = recs.map(r => parseFloat(r.val));
+            const min = Math.min(...weights) - 0.5;
+            const max = Math.max(...weights) + 0.5;
+            const width = container.clientWidth;
+            
+            let points = "";
+            recs.forEach((r, i) => {
+                const x = (i / (recs.length - 1)) * width;
+                const y = 100 - ((r.val - min) / (max - min)) * 100;
+                points += `${x},${y} `;
+                if(i === recs.length-1) document.getElementById('currentWeightDisplay').innerText = r.val + " kg";
+            });
+
+            container.innerHTML = `<svg width="100%" height="100%" style="overflow:visible"><polyline points="${points}" />${recs.map((r,i) => `<circle cx="${(i/(recs.length-1))*width}" cy="${100-((r.val-min)/(max-min))*100}" class="chart-point" />`).join('')}</svg>`;
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('gridCells');
+            const mLabels = document.getElementById('monthLabels');
+            grid.innerHTML = ''; mLabels.innerHTML = '';
+            
+            const startOffset = 3; 
+            const totalDays = 365 + startOffset;
+            let currentMonth = -1;
+
+            for (let i = 0; i < totalDays; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'day-cell';
+                
+                if (i < startOffset) {
+                    cell.style.opacity = 0; cell.style.pointerEvents = 'none';
+                    grid.appendChild(cell); continue;
+                }
+
+                const dayIndex = i - startOffset;
+                const date = new Date(YEAR, 0, dayIndex + 1);
+                const dateKey = date.toLocaleDateString('zh-CA');
+                
+                if(date.getMonth() !== currentMonth) {
+                    currentMonth = date.getMonth();
+                    const label = document.createElement('span');
+                    label.className = 'month-label';
+                    label.innerText = date.toLocaleDateString('en-US',{month:'short'});
+                    label.style.left = `calc(${Math.floor(i/7)} * (var(--cell-size) + var(--cell-gap)))`;
+                    mLabels.appendChild(label);
+                }
+
+                const hist = appData.history[dateKey];
+                if (hist) {
+                    cell.classList.add(hist.type === 'rest' ? 'rest' : 'active');
+                }
+                if (date.toDateString() === new Date().toDateString()) {
+                    cell.classList.add('today'); cell.id = 'todayMarker';
+                }
+                cell.onclick = () => showHistory(dateKey, hist);
+                grid.appendChild(cell);
+            }
+            setTimeout(() => {
+                const marker = document.getElementById('todayMarker');
+                if(marker) marker.scrollIntoView({inline: 'center', behavior: 'smooth'});
+            }, 100);
+        }
+
+        function renderDiet() {
+            const list = document.getElementById('dietList');
+            list.innerHTML = '';
+            appData.currentDiet.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center mb-3 bg-[#111] p-3 rounded-lg border border-[#222]';
+                const trash = item.required ? '' : `<button onclick="removeMeal(${idx})" class="ml-2 text-gray-600"><i class="fas fa-trash"></i></button>`;
+                
+                div.innerHTML = `
+                    <div class="check-btn ${item.checked?'checked':''} mr-3 shrink-0" onclick="toggleMeal(${idx})">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex justify-between text-sm mb-1">
+                            <input type="time" class="bg-transparent text-accent font-mono w-24 outline-none font-bold" value="${item.time}" onchange="updateMeal(${idx}, 'time', this.value)">
+                        </div>
+                        <div class="flex items-center">
+                            <input class="bg-transparent text-white w-full outline-none" value="${item.text}" onchange="updateMeal(${idx}, 'text', this.value)" placeholder="输入或点击魔棒...">
+                            <button onclick="fillRandomFood(${idx})" class="text-gray-500 hover:text-accent px-2"><i class="fas fa-magic"></i></button>
+                            ${trash}
+                        </div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+        
+        function addMeal() {
+            appData.currentDiet.push({ id: Date.now(), time: '16:00', text: '', checked: false, required: false });
+            saveData(); renderDiet();
+        }
+        function fillRandomFood(idx) {
+            appData.currentDiet[idx].text = FOOD_LIB[Math.floor(Math.random() * FOOD_LIB.length)];
+            saveData(); renderDiet();
+        }
+        function removeMeal(idx) { appData.currentDiet.splice(idx, 1); saveData(); renderDiet(); }
+        function toggleMeal(idx) { appData.currentDiet[idx].checked = !appData.currentDiet[idx].checked; saveData(); renderDiet(); }
+        function updateMeal(idx, field, val) { appData.currentDiet[idx][field] = val; saveData(); }
+
+        function switchPlan(type) { appData.currentPlan = type; saveData(); renderWorkout(); }
+        
+        function renderWorkout() {
+            const list = document.getElementById('workoutList');
+            list.innerHTML = '';
+            
+            document.getElementById('tabUpper').className = `tab-btn ${appData.currentPlan==='upper'?'tab-active':'tab-inactive'}`;
+            document.getElementById('tabLower').className = `tab-btn ${appData.currentPlan==='lower'?'tab-active':'tab-inactive'}`;
+
+            const exercises = CONFIG.plans[appData.currentPlan];
+            exercises.forEach(ex => {
+                const lastWeight = appData.lastWeights[ex.name] || '--';
+                const card = document.createElement('div');
+                card.className = 'workout-card';
+                let setsHtml = '';
+                for(let i=1; i<=CONFIG.defaultSets; i++) setsHtml += createSetRow(i, ex.id, false);
+
+                card.innerHTML = `
+                    <div class="gif-area">
+                        <!-- 修改：MP4 Video 标签 -->
+                        <video src="${ex.gif}" autoplay loop muted playsinline class="w-full h-full object-cover"></video>
+                    </div>
+                    <div class="p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="font-bold text-white">${ex.name}</h3>
+                            <span class="text-xs text-gray-500">上次: ${lastWeight}kg</span>
+                        </div>
+                        <div id="sets-${ex.id}">${setsHtml}</div>
+                        <button onclick="addSet('${ex.id}')" class="w-full mt-2 py-2 border border-dashed border-[#333] text-gray-500 text-xs rounded hover:border-accent hover:text-accent transition-colors">+ 增加一组</button>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function createSetRow(num, exId, removable) {
+            const delBtn = removable ? `<button onclick="this.closest('.set-row').remove()" class="w-8 h-8 flex items-center justify-center text-red-900"><i class="fas fa-times"></i></button>` : `<div class="w-8"></div>`;
+            return `<div class="set-row"><span class="text-xs text-gray-600 w-4 font-mono">${num}</span><div class="input-wrapper"><input type="number" class="input-dark" placeholder="-" onchange="cacheWeight('${exId}', this.value)"><span class="unit-text">kg</span></div><span class="text-xs text-gray-600">x</span><div class="input-wrapper"><input type="number" class="input-dark" placeholder="10"><span class="unit-text">reps</span></div><div class="flex-1"></div><div class="check-btn" onclick="this.classList.toggle('checked')"><i class="fas fa-check"></i></div>${delBtn}</div>`;
+        }
+        function addSet(exId) { document.getElementById(`sets-${exId}`).insertAdjacentHTML('beforeend', createSetRow(document.getElementById(`sets-${exId}`).children.length+1, exId, true)); }
+        function cacheWeight(exId, val) { 
+            const name = [...CONFIG.plans.upper, ...CONFIG.plans.lower].find(e=>e.id===exId)?.name;
+            if(name && val) { appData.lastWeights[name] = val; saveData(); }
+        }
+
+        // --- Interaction Logic ---
+        function updateButtonState() {
+            const dateKey = new Date().toLocaleDateString('zh-CA');
+            const isFilled = !!appData.history[dateKey];
+            const btn = document.getElementById('mainActionBtn');
+            
+            if(isFilled) {
+                // 修改：更强有力的文案
+                btn.innerHTML = `<i class="fas fa-dumbbell mr-2"></i> 💪 今日任务达成`;
+                btn.className = "action-btn filled";
+            } else {
+                btn.innerHTML = `<i class="fas fa-bolt mr-2"></i> 填满今日格子`;
+                btn.className = "action-btn";
+            }
+        }
+
+        function handleMainAction() {
+            const dateKey = new Date().toLocaleDateString('zh-CA');
+            if(appData.history[dateKey]) {
+                document.getElementById('actionSheet').style.display = 'flex';
+            } else {
+                currentModalMode = 'checkin'; // 标记为打卡模式
+                tryFinishDay(); 
+            }
+        }
+
+        function tryFinishDay() {
+            const dietDone = appData.currentDiet.some(d => d.checked);
+            const workoutDone = document.querySelectorAll('#workoutList .check-btn.checked').length > 0;
+            if(!dietDone && !workoutDone) return alert("至少完成一项任务才能打卡哦！");
+            
+            window.isRestDay = dietDone && !workoutDone;
+            document.getElementById('modalTitle').innerText = "记录今日体重";
+            document.getElementById('skipBtn').style.display = 'block';
+            document.getElementById('weightModal').style.display = 'flex';
+        }
+
+        function undoCheckIn() {
+            const dateKey = new Date().toLocaleDateString('zh-CA');
+            delete appData.history[dateKey];
+            saveData();
+            closeModal('actionSheet');
+            renderCalendar();
+            renderHeader(); 
+        }
+
+        function confirmFinish() {
+            const wInput = document.getElementById('weightInput').value;
+            const dateKey = new Date().toLocaleDateString('zh-CA');
+
+            // 保存体重 (无论是初始化还是打卡，都保存)
+            if(wInput) {
+                appData.weightRecords.push({ date: dateKey, val: wInput });
+                if(appData.weightRecords.length > 30) appData.weightRecords.shift();
+                saveData(); // Save immediately
+                renderChart(); // Refresh chart
+            }
+
+            // 逻辑分岔：如果是新用户初始化，到此为止
+            if(currentModalMode === 'onboarding') {
+                closeModal('weightModal');
+                return; // 不执行后续的打卡逻辑
+            }
+
+            // 只有在打卡模式下，才记录历史并庆祝
+            appData.history[dateKey] = {
+                type: window.isRestDay ? 'rest' : 'workout',
+                diet: appData.currentDiet.filter(d=>d.checked),
+                workoutPlan: window.isRestDay ? null : appData.currentPlan
+            };
+            
+            saveData();
+            closeModal('weightModal');
+            playAnimation();
+        }
+
+        function resetApp() {
+            if(confirm("确定要清空所有数据并重新开始吗？此操作无法撤销。")) {
+                localStorage.removeItem(DB_KEY);
+                location.reload();
+            }
+        }
+
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        
+        function playAnimation() {
+            const layer = document.getElementById('celebrateLayer');
+            const gridAnim = document.getElementById('gridAnim');
+            layer.style.display = 'flex';
+            gridAnim.innerHTML = '';
+            for(let i=0; i<30; i++) {
+                const d = document.createElement('div');
+                d.className = 'w-6 h-6 rounded bg-[#222] transition-colors duration-300';
+                gridAnim.appendChild(d);
+                setTimeout(() => d.style.background = window.isRestDay ? 'var(--rest)' : 'var(--accent)', i*50);
+            }
+            const count = Object.keys(appData.history).length;
+            const nextLv = CONFIG.levels.find(l => l.days === count);
+            document.getElementById('levelUpText').innerText = nextLv ? `升级! ${nextLv.title}` : (window.isRestDay ? "休息日充能完毕!" : "今日训练达成!");
+            
+            setTimeout(() => {
+                layer.style.display = 'none';
+                window.scrollTo({top:0, behavior:'smooth'});
+                renderUI();
+            }, 2500);
+        }
+
+        function showHistory(dateKey, hist) {
+            const modal = document.getElementById('historyModal');
+            const title = document.getElementById('histDate');
+            const content = document.getElementById('histContent');
+            modal.style.display = 'flex';
+            title.innerText = dateKey;
+            
+            if(!hist) { content.innerHTML = '<p class="text-gray-500 py-4">无打卡记录</p>'; return; }
+            
+            let html = `
+                <div class="bg-[#222] p-3 rounded border-l-4 ${hist.type==='rest'?'border-[var(--rest)]':'border-[var(--accent)]'}">
+                    <h4 class="font-bold text-white mb-1">${hist.type==='rest'?'💤 休息日':'🏋️ 训练日'}</h4>
+                    <p class="text-xs text-gray-500">${hist.type!=='rest' ? (hist.workoutPlan==='upper'?'上半身':'下半身') : '好好休息，肌肉在生长'}</p>
+                </div>
+                <div class="mt-4">
+                    <h4 class="text-xs text-gray-500 uppercase mb-2">饮食记录</h4>
+                    ${hist.diet.map(d => `<div class="text-sm text-gray-300 mb-1">✅ ${d.time} ${d.text}</div>`).join('')}
+                </div>
+            `;
+            content.innerHTML = html;
+        }
+
+        // Start
+        init();
+    </script>
+</body>
+</html>
